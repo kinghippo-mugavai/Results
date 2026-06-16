@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>District Election Intelligence & Analysis Dashboard</title>
+  
+  <!-- CDNs for visual libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx/dist/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+  
+  <!-- FontAwesome for Premium Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Project stylesheet -->
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div class="loading-overlay" id="loading-overlay">
+    <div class="spinner"></div>
+    <div class="upload-title" style="color: var(--text-primary);" id="loading-text">Processing election data...</div>
+  </div>
+
+  <!-- App Container -->
+  <div class="app-container">
+    
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar" id="app-sidebar">
+      <div class="sidebar-header">
+        <div style="display: flex; flex-direction: column;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-square-poll-vertical fa-xl" style="color: #6366f1;"></i>
+            <span class="sidebar-logo">ELECT-INTEL</span>
+          </div>
+          <span class="sidebar-subtitle">District Analytics</span>
+        </div>
+      </div>
+      
+      <ul class="sidebar-menu">
+        <li class="menu-item active" data-page="district-overview">
+          <a href="#"><i class="fa-solid fa-chart-pie"></i><span>District Overview</span></a>
+        </li>
+        
+        <li class="menu-divider"></li>
+        
+        <div style="padding: 0 16px 8px 16px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Constituencies</div>
+        
+        <li class="menu-item" data-page="ac-209">
+          <a href="#"><i class="fa-solid fa-map-location-dot"></i><span>AC 209 Paramakudi</span></a>
+        </li>
+        <li class="menu-item" data-page="ac-210">
+          <a href="#"><i class="fa-solid fa-map-location-dot"></i><span>AC 210 Tiruvadanai</span></a>
+        </li>
+        <li class="menu-item" data-page="ac-211">
+          <a href="#"><i class="fa-solid fa-map-location-dot"></i><span>AC 211 Ramanathapuram</span></a>
+        </li>
+        <li class="menu-item" data-page="ac-212">
+          <a href="#"><i class="fa-solid fa-map-location-dot"></i><span>AC 212 Mudhukulathur</span></a>
+        </li>
+        
+        <li class="menu-divider"></li>
+        
+        <div style="padding: 0 16px 8px 16px; font-size: 0.7rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">Analytics & Tools</div>
+        
+        <li class="menu-item" data-page="booth-analysis">
+          <a href="#"><i class="fa-solid fa-table-list"></i><span>Booth-wise Table</span></a>
+        </li>
+        <li class="menu-item" data-page="booth-cluster">
+          <a href="#"><i class="fa-solid fa-circle-nodes"></i><span>Booth Cluster</span></a>
+        </li>
+        <li class="menu-item" data-page="agent-analysis">
+          <a href="#"><i class="fa-solid fa-users-gear"></i><span>Agent Performance</span></a>
+        </li>
+        <li class="menu-item" data-page="ai-insights">
+          <a href="#"><i class="fa-solid fa-brain"></i><span>AI Strategic Insights</span></a>
+        </li>
+
+      </ul>
+      
+      <div class="sidebar-footer">
+        <div class="theme-toggle" id="theme-toggle">
+          <span>Mode</span>
+          <span id="theme-icon-container">
+            <i class="fa-solid fa-moon"></i> Dark
+          </span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Main Content Panel -->
+    <main class="main-content" id="pdf-root">
+      
+      <!-- Top Header Row -->
+      <div class="header-area">
+        <div>
+          <button class="menu-toggle-btn" id="menu-toggle" style="margin-bottom: 8px;">
+            <i class="fa-solid fa-bars"></i>
+          </button>
+          <h1 class="page-title" id="page-display-title">District Overview</h1>
+          <p class="page-subtitle" id="page-display-subtitle">General Election Results & Performance Intelligence Dashboard</p>
+        </div>
+        
+        <div class="header-actions">
+          <button class="btn btn-secondary" onclick="window.print()"><i class="fa-solid fa-print"></i> Print</button>
+          <button class="btn btn-primary" id="export-pdf-btn"><i class="fa-solid fa-file-pdf"></i> Export PDF</button>
+        </div>
+      </div>
+
+      <!-- ============================================== -->
+      <!-- 1. DISTRICT OVERVIEW PAGE -->
+      <!-- ============================================== -->
+      <section class="dashboard-section active" id="sect-district-overview">
+        <!-- Summary Cards -->
+        <div class="summary-grid" id="district-summary-cards">
+          <!-- Populated by JS -->
+        </div>
+
+        <div class="grid-2col">
+          <!-- Vote Share Pie -->
+          <div class="glass-card">
+            <div class="card-title">Party Vote Share (EVM + Postal)</div>
+            <div style="height: 300px; display: flex; justify-content: center;">
+              <canvas id="district-vote-share-chart"></canvas>
+            </div>
+          </div>
+          <!-- Turnout Comparison -->
+          <div class="glass-card">
+            <div class="card-title">Constituency Turnout Comparison</div>
+            <div style="height: 300px;">
+              <canvas id="district-turnout-comparison-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <!-- Constituency Winners Grid -->
+        <div class="glass-card">
+          <div class="card-title">Assembly Constituency Leaders</div>
+          <div class="table-wrapper">
+            <table class="custom-table" id="district-winner-table">
+              <thead>
+                <tr>
+                  <th>AC No</th>
+                  <th>Constituency Name</th>
+                  <th>Total Votes</th>
+                  <th>Winning Candidate</th>
+                  <th>Party</th>
+                  <th>Victory Margin</th>
+                  <th>Turnout %</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- Populated by JS -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- 2. CONSTITUENCY PAGE (SHARED LAYOUT) -->
+      <!-- ============================================== -->
+      <section class="dashboard-section" id="sect-constituency-view">
+        <!-- Summary Cards -->
+        <div class="summary-grid" id="ac-summary-cards">
+          <!-- Populated by JS -->
+        </div>
+
+        <div class="grid-2col">
+          <!-- Candidate vote share stack -->
+          <div class="glass-card">
+            <div class="card-title">Candidate Performance</div>
+            <div class="vote-stack" id="ac-vote-stack">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+          <!-- Turnout or support charts -->
+          <div class="glass-card">
+            <div class="card-title">Party performance Comparison</div>
+            <div style="height: 300px;">
+              <canvas id="ac-party-performance-chart"></canvas>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-3col">
+          <!-- Strongest booths -->
+          <div class="glass-card">
+            <div class="card-title" style="color: #10b981;"><i class="fa-solid fa-arrow-trend-up"></i> Top 5 Strong Booths</div>
+            <div class="table-wrapper">
+              <table class="custom-table" id="ac-strong-booths-table">
+                <thead>
+                  <tr>
+                    <th>Booth</th>
+                    <th>Winner</th>
+                    <th>Votes</th>
+                    <th>Margin</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- Weakest booths -->
+          <div class="glass-card">
+            <div class="card-title" style="color: #ef4444;"><i class="fa-solid fa-arrow-trend-down"></i> Top 5 Weak Booths</div>
+            <div class="table-wrapper">
+              <table class="custom-table" id="ac-weak-booths-table">
+                <thead>
+                  <tr>
+                    <th>Booth</th>
+                    <th>Winner</th>
+                    <th>Votes</th>
+                    <th>Margin</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- Close contest booths -->
+          <div class="glass-card">
+            <div class="card-title" style="color: #f59e0b;"><i class="fa-solid fa-arrows-split-up-and-left"></i> Top 5 Close Contest Booths</div>
+            <div class="table-wrapper">
+              <table class="custom-table" id="ac-close-booths-table">
+                <thead>
+                  <tr>
+                    <th>Booth</th>
+                    <th>Winner</th>
+                    <th>Margin</th>
+                    <th>Turnout</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Heatmap representation of booths -->
+        <div class="glass-card">
+          <div class="card-title">
+            <span>Booth Winner Heatmap</span>
+            <div style="font-size: 0.8rem; font-weight: normal; color: var(--text-secondary); display: flex; gap: 12px;">
+              <span><i class="fa-solid fa-square" style="color: var(--color-dmk)"></i> DMK</span>
+              <span><i class="fa-solid fa-square" style="color: var(--color-tvk)"></i> TVK</span>
+              <span><i class="fa-solid fa-square" style="color: var(--color-aiadmk)"></i> AIADMK</span>
+              <span><i class="fa-solid fa-square" style="color: var(--color-inc)"></i> INC</span>
+              <span><i class="fa-solid fa-square" style="color: var(--color-bjp)"></i> BJP</span>
+              <span><i class="fa-solid fa-square" style="color: var(--color-ntk)"></i> NTK</span>
+            </div>
+          </div>
+          <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 16px;">Hover on cells to view Booth Name, winner, and margin. Click cell to open details.</p>
+          <div class="heatmap-grid" id="ac-heatmap-grid">
+            <!-- Populated by JS -->
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- 3. BOOTH-WISE RESULT ANALYSIS TABLE -->
+      <!-- ============================================== -->
+      <section class="dashboard-section" id="sect-booth-analysis">
+        <!-- Advanced Filter Row -->
+        <div class="filter-panel">
+          <div class="filter-group">
+            <span class="filter-label">Constituency</span>
+            <select class="filter-control" id="filter-booth-ac">
+              <option value="all">All Constituencies</option>
+              <option value="209">209 Paramakudi</option>
+              <option value="210">210 Tiruvadanai</option>
+              <option value="211">211 Ramanathapuram</option>
+              <option value="212">212 Mudhukulathur</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Winner</span>
+            <select class="filter-control" id="filter-booth-winner">
+              <option value="all">All Parties</option>
+              <option value="DMK">DMK</option>
+              <option value="TVK">TVK</option>
+              <option value="AIADMK">AIADMK</option>
+              <option value="INC">INC</option>
+              <option value="BJP">BJP</option>
+              <option value="NTK">NTK</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Margin Status</span>
+            <select class="filter-control" id="filter-booth-margin">
+              <option value="all">All Margins</option>
+              <option value="high">High Dominance (>200 votes)</option>
+              <option value="mid">Mid Margin (50-200 votes)</option>
+              <option value="close">Close Contest (<50 votes)</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Turnout Status</span>
+            <select class="filter-control" id="filter-booth-turnout">
+              <option value="all">All Turnouts</option>
+              <option value="high">High Turnout (>80%)</option>
+              <option value="low">Low Turnout (<72%)</option>
+            </select>
+          </div>
+          <div class="search-input-wrapper filter-group">
+            <span class="filter-label">Search Booth</span>
+            <div style="position: relative;">
+              <input type="text" class="filter-control" style="width: 100%; padding-left: 36px;" placeholder="Search Booth Name or Number..." id="search-booth-input">
+              <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 13px; color: var(--text-muted);"></i>
+            </div>
+          </div>
+          <div style="display: flex; align-items: flex-end;">
+            <button class="btn btn-secondary" id="reset-booth-filters-btn"><i class="fa-solid fa-filter-circle-xmark"></i> Clear</button>
+          </div>
+        </div>
+
+        <!-- Booth Results Table -->
+        <div class="glass-card">
+          <div class="card-title">
+            <span>Booth Results Ledger</span>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" id="export-booth-csv"><i class="fa-solid fa-file-csv"></i> CSV</button>
+              <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" id="export-booth-xlsx"><i class="fa-solid fa-file-excel"></i> Excel</button>
+            </div>
+          </div>
+          <div class="table-wrapper">
+            <table class="custom-table" id="booth-ledger-table">
+              <thead>
+                <!-- Populated dynamically based on columns -->
+              </thead>
+              <tbody>
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div class="pagination-container" id="booth-pagination">
+            <div class="pagination-info" id="booth-pagination-info">Showing 1 to 25 of 1514 booths</div>
+            <div class="pagination-controls" id="booth-pagination-controls">
+              <!-- Dynamically populated -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- 4. BOOTH CLUSTER ANALYSIS -->
+      <!-- ============================================== -->
+      <section class="dashboard-section" id="sect-booth-cluster">
+        <div class="glass-card">
+          <div class="card-title">Cluster Selection</div>
+          <div style="display: flex; flex-direction: column; gap: 16px;">
+            <div style="display: flex; gap: 24px; align-items: center;">
+              <div class="filter-group" style="max-width: 250px;">
+                <span class="filter-label">Select Constituency</span>
+                <select class="filter-control" id="cluster-constituency-select">
+                  <option value="209">209 Paramakudi</option>
+                  <option value="210">210 Tiruvadanai</option>
+                  <option value="211">211 Ramanathapuram</option>
+                  <option value="212">212 Mudhukulathur</option>
+                </select>
+              </div>
+              <div style="display: flex; flex-direction: column; gap: 6px;">
+                <span class="filter-label">Define Booth Range</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <input type="number" class="filter-control" style="width: 100px;" value="1" min="1" id="cluster-range-start">
+                  <span style="color: var(--text-secondary);">to</span>
+                  <input type="number" class="filter-control" style="width: 100px;" value="50" min="2" id="cluster-range-end">
+                  <button class="btn btn-primary" id="btn-analyze-cluster"><i class="fa-solid fa-magnifying-glass-chart"></i> Analyze</button>
+                </div>
+              </div>
+            </div>
+            
+            <div class="menu-divider" style="margin: 8px 0;"></div>
+            
+            <div>
+              <span class="filter-label" style="display: block; margin-bottom: 8px;">Predefined Ranges</span>
+              <div class="cluster-selector" id="predefined-cluster-buttons">
+                <!-- Dynamically Populated -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-2col">
+          <!-- Cluster Metrics -->
+          <div class="glass-card" style="display: flex; flex-direction: column; justify-content: space-between;">
+            <div>
+              <div class="card-title">Cluster Summary Metrics</div>
+              <div class="summary-grid" style="grid-template-columns: repeat(2, 1fr); gap: 16px;">
+                <div class="glass-card" style="padding: 16px; background-color: rgba(0,0,0,0.15);">
+                  <div class="summary-label" style="font-size: 0.75rem;">Booths Contained</div>
+                  <div class="summary-value" style="font-size: 1.5rem;" id="cluster-val-booths">0</div>
+                </div>
+                <div class="glass-card" style="padding: 16px; background-color: rgba(0,0,0,0.15);">
+                  <div class="summary-label" style="font-size: 0.75rem;">Votes Cast</div>
+                  <div class="summary-value" style="font-size: 1.5rem;" id="cluster-val-votes">0</div>
+                </div>
+                <div class="glass-card" style="padding: 16px; background-color: rgba(0,0,0,0.15);">
+                  <div class="summary-label" style="font-size: 0.75rem;">Turnout Percentage</div>
+                  <div class="summary-value" style="font-size: 1.5rem;" id="cluster-val-turnout">0%</div>
+                </div>
+                <div class="glass-card" style="padding: 16px; background-color: rgba(0,0,0,0.15);">
+                  <div class="summary-label" style="font-size: 0.75rem;">Cluster Winner</div>
+                  <div class="summary-value" style="font-size: 1.25rem; margin-top: 4px;" id="cluster-val-winner">None</div>
+                </div>
+              </div>
+            </div>
+            
+            <div style="margin-top: 24px;">
+              <span class="filter-label" style="display:block; margin-bottom: 8px;">Dynamic Progress Share</span>
+              <div id="cluster-party-progress-stack" class="vote-stack">
+                <!-- Dynamically populated -->
+              </div>
+            </div>
+          </div>
+          
+          <!-- Cluster Chart -->
+          <div class="glass-card">
+            <div class="card-title">Party Vote Share in Cluster</div>
+            <div style="height: 280px; display: flex; justify-content: center;">
+              <canvas id="cluster-vote-share-chart"></canvas>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- 5. BOOTH AGENT PERFORMANCE ANALYSIS -->
+      <!-- ============================================== -->
+      <section class="dashboard-section" id="sect-agent-analysis">
+        <!-- Advanced Filter Row for Agents -->
+        <div class="filter-panel">
+          <div class="filter-group">
+            <span class="filter-label">Constituency</span>
+            <select class="filter-control" id="filter-agent-ac">
+              <option value="209">209 Paramakudi</option>
+              <option value="210">210 Tiruvadanai</option>
+              <option value="211">211 Ramanathapuram</option>
+              <option value="212">212 Mudhukulathur</option>
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Agent Party</span>
+            <select class="filter-control" id="filter-agent-party">
+              <!-- Populated by JS based on constituency selection -->
+            </select>
+          </div>
+          <div class="filter-group">
+            <span class="filter-label">Performance Rating</span>
+            <select class="filter-control" id="filter-agent-rating">
+              <option value="all">All Agents</option>
+              <option value="top">Top Performing (Effectiveness >75)</option>
+              <option value="low">Underperforming (Effectiveness <45)</option>
+              <option value="high-turn-low-vote">High Turnout / Low Vote Conversion</option>
+              <option value="low-turn-high-support">Low Turnout / High Support</option>
+            </select>
+          </div>
+          <div class="search-input-wrapper filter-group">
+            <span class="filter-label">Search Agent / Area</span>
+            <div style="position: relative;">
+              <input type="text" class="filter-control" style="width: 100%; padding-left: 36px;" placeholder="Search Agent Name, Mobile, or Booth Area..." id="search-agent-input">
+              <i class="fa-solid fa-magnifying-glass" style="position: absolute; left: 12px; top: 13px; color: var(--text-muted);"></i>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid-3col">
+          <!-- Top Agents -->
+          <div class="glass-card" style="border-top: 4px solid #10b981;">
+            <div class="card-title" style="color: #10b981;"><i class="fa-solid fa-award"></i> Top Performing Agents</div>
+            <div class="table-wrapper">
+              <table class="custom-table" id="agent-top-performers">
+                <thead>
+                  <tr>
+                    <th>Agent</th>
+                    <th>Booth</th>
+                    <th>Effectiveness</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- Underperforming Agents -->
+          <div class="glass-card" style="border-top: 4px solid #ef4444;">
+            <div class="card-title" style="color: #ef4444;"><i class="fa-solid fa-triangle-exclamation"></i> Underperforming Agents</div>
+            <div class="table-wrapper">
+              <table class="custom-table" id="agent-under-performers">
+                <thead>
+                  <tr>
+                    <th>Agent</th>
+                    <th>Booth</th>
+                    <th>Effectiveness</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- High turn low support -->
+          <div class="glass-card" style="border-top: 4px solid #f59e0b;">
+            <div class="card-title" style="color: #f59e0b;"><i class="fa-solid fa-percent"></i> Low Conversion Zones</div>
+            <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">Booths with high turnout (>80%) but low vote share (<25%) for selected party.</p>
+            <div class="table-wrapper">
+              <table class="custom-table" id="agent-low-conversion">
+                <thead>
+                  <tr>
+                    <th>Agent</th>
+                    <th>Booth</th>
+                    <th>Turnout / Share</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Master Agent performance table -->
+        <div class="glass-card">
+          <div class="card-title">
+            <span>Agent Roster & Performance Matrix</span>
+            <button class="btn btn-secondary" style="padding: 6px 12px; font-size: 0.8rem;" id="export-agent-csv"><i class="fa-solid fa-file-csv"></i> Export CSV</button>
+          </div>
+          <div class="table-wrapper">
+            <table class="custom-table" id="agent-performance-table">
+              <thead>
+                <tr>
+                  <th>Rank</th>
+                  <th>Booth No</th>
+                  <th>Booth Name</th>
+                  <th>Agent Name</th>
+                  <th>Mobile No</th>
+                  <th>Party</th>
+                  <th>Candidate Votes</th>
+                  <th>Opponent Votes</th>
+                  <th>Margin</th>
+                  <th>Vote Conversion %</th>
+                  <th>Booth Turnout %</th>
+                  <th>Effectiveness Score</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+
+          <!-- Pagination Controls -->
+          <div class="pagination-container" id="agent-pagination">
+            <div class="pagination-info" id="agent-pagination-info">Showing 1 to 25 of 600 agents</div>
+            <div class="pagination-controls" id="agent-pagination-controls"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============================================== -->
+      <!-- 6. AI INSIGHTS MODULE -->
+      <!-- ============================================== -->
+      <section class="dashboard-section" id="sect-ai-insights">
+        <div class="glass-card">
+          <div class="card-title">Constituency Selection for AI Strategy</div>
+          <div class="filter-group" style="max-width: 300px;">
+            <select class="filter-control" id="ai-constituency-select">
+              <option value="209">209 Paramakudi</option>
+              <option value="210">210 Tiruvadanai</option>
+              <option value="211">211 Ramanathapuram</option>
+              <option value="212">212 Mudhukulathur</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="insight-container">
+          <!-- Main Narrative Insights -->
+          <div class="glass-card" style="border-left: 4px solid #8b5cf6;">
+            <h2 class="insight-title" style="font-size: 1.25rem;"><i class="fa-solid fa-wand-magic-sparkles" style="color: #8b5cf6;"></i> Executive Strategic Summary</h2>
+            <div class="insight-description" id="ai-narrative-summary" style="margin-top: 12px;">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <div class="grid-2col">
+            <!-- Top Target Booths -->
+            <div class="glass-card" style="border-left: 4px solid #f59e0b;">
+              <h2 class="insight-title" style="color: #f59e0b;"><i class="fa-solid fa-bullseye"></i> High-Priority Defeat Margins (<100 votes)</h2>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Booths lost by a narrow margin of less than 100 votes. These represent highly achievable swing targets for the next campaign.</p>
+              <div class="table-wrapper">
+                <table class="custom-table" id="ai-swing-booths-table">
+                  <thead>
+                    <tr>
+                      <th>Booth No</th>
+                      <th>Booth Name</th>
+                      <th>Votes Secured</th>
+                      <th>Defeat Margin</th>
+                      <th>Turnout %</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+            
+            <!-- High Turnout Low Conversion -->
+            <div class="glass-card" style="border-left: 4px solid #ef4444;">
+              <h2 class="insight-title" style="color: #ef4444;"><i class="fa-solid fa-arrow-trend-down"></i> High Turnout / Low Vote Conversion Booths</h2>
+              <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 12px;">Booths with turnout exceeding 80% where the winning party captured less than 30% vote share. Strong operational mobilization occurred, but candidate messaging failed.</p>
+              <div class="table-wrapper">
+                <table class="custom-table" id="ai-high-turn-low-conv-table">
+                  <thead>
+                    <tr>
+                      <th>Booth No</th>
+                      <th>Booth Name</th>
+                      <th>Turnout</th>
+                      <th>Vote Share %</th>
+                      <th>Agent</th>
+                    </tr>
+                  </thead>
+                  <tbody></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Strategic Recommendations -->
+          <div class="glass-card" style="border-left: 4px solid #10b981;">
+            <h2 class="insight-title" style="color: #10b981;"><i class="fa-solid fa-list-check"></i> Actionable Political Interventions</h2>
+            <ul class="insight-list" id="ai-recommendations-list">
+              <!-- Populated by JS -->
+            </ul>
+          </div>
+        </div>
+      </section>
+
+
+
+    </main>
+  </div>
+
+  <!-- Detail Drill-Down Modal -->
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <h2 class="modal-title" id="modal-title">Booth Detail View</h2>
+        <button class="modal-close" id="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body" id="modal-body">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Load default data and dashboard logic -->
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
